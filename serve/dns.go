@@ -1,39 +1,33 @@
-package main
+package serve
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
+	"dhcp-backend/dns"
+	"dhcp-backend/etcd"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
-
-	// mysql driver
-	_ "github.com/jinzhu/gorm/dialects/mysql"
-
-	// sqlite driver
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
-
-	// postgres driver
-	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
 var (
-	errMissingName = errors.New("Missing `name`")
-	errMissingHost = errors.New("Missing `host`")
+	errMissingName        = errors.New("Missing `name`")
+	errMissingHost        = errors.New("Missing `host`")
+	errMissingType        = errors.New("Missing `type`")
+	errNoGatewayAvailable = errors.New("No Gateway Available")
+	errKeyNotMatch        = errors.New("Key Not Match")
 )
 
 // DNSBackend 在DB中添加/删除 DNS 记录
 type DNSBackend struct {
-	Agent DNSAgent
+	Agent dns.Agent
 }
 
 func (b *DNSBackend) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func readRecordFromRequest(w http.ResponseWriter, r *http.Request) (rec DNSRecord, err error) {
+func readRecordFromRequest(w http.ResponseWriter, r *http.Request) (rec dns.Record, err error) {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		Error(w, err.Error(), http.StatusBadRequest)
@@ -59,6 +53,13 @@ func (b *DNSBackend) AddRecord(w http.ResponseWriter, r *http.Request) {
 	} else if rec.Name == "" {
 		Error(w, errMissingName.Error(), http.StatusBadRequest)
 		return
+	}
+
+	if strings.HasSuffix(rec.Name, ".master") || strings.HasSuffix(rec.Name, ".worker") {
+		if strings.Count(rec.Name, ".") < 2 {
+			Error(w, "Not Allowed", http.StatusForbidden)
+			return
+		}
 	}
 
 	err = b.Agent.AddRecord(rec)
@@ -91,7 +92,7 @@ func (b *DNSBackend) ModifyRecord(w http.ResponseWriter, r *http.Request) {
 func (b *DNSBackend) FindRecord(w http.ResponseWriter, r *http.Request) {
 
 	switch b.Agent.(type) {
-	case SkyDNSAgent:
+	case etcd.SkyDNSAgent:
 		query := r.URL.Query()
 		name := query.Get("name")
 
@@ -105,44 +106,11 @@ func (b *DNSBackend) FindRecord(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		result := b.Agent.(SkyDNSAgent).FindSkyDNS(name, prefix)
+		result := b.Agent.(etcd.SkyDNSAgent).FindSkyDNS(name, prefix)
 		WriteData(w, &map[string]interface{}{"records": result})
 
 	default:
 		ErrorWithCode(w, http.StatusNotImplemented)
 	}
 
-}
-
-// VirtualNetworkBackend 管理虚拟网络
-type VirtualNetworkBackend struct {
-	PrivateKey *rsa.PrivateKey // 私钥
-}
-
-// Verify 验证请求是否合法
-func (b *VirtualNetworkBackend) Verify(w http.ResponseWriter, r *http.Request) (buf []byte, err error) {
-	buf, err = ioutil.ReadAll(r.Body)
-	if err != nil {
-		Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	// // b.PrivateKey.Decrypt("", )
-	// b.PrivateKey.Precompute()
-	// publickey := b.PrivateKey.Public()
-
-	// msg := []byte("The secret message!")
-
-	// encryptedmsg, err := rsa.EncryptPKCS1v15(rand.Reader, publickey.(*rsa.PublicKey), msg)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	os.Exit(1)
-	// }
-
-	buf, err = rsa.DecryptPKCS1v15(rand.Reader, b.PrivateKey, buf)
-	if err != nil {
-		// TODO
-		Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-	return
 }

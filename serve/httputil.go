@@ -1,4 +1,4 @@
-package main
+package serve
 
 import (
 	"encoding/json"
@@ -90,7 +90,8 @@ func WriteSucess(w http.ResponseWriter) {
 	WriteData(w, nil)
 }
 
-func simpleLoggingMw(next http.Handler) http.Handler {
+// SimpleLoggingMw 简单的日志中间件
+func SimpleLoggingMw(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("In:\t%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
 		start := time.Now()

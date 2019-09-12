@@ -1,4 +1,4 @@
-package main
+package etcd
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/coredns/coredns/plugin/etcd/msg"
 	"github.com/coreos/etcd/clientv3"
+
+	dns "dhcp-backend/dns"
 )
 
 // SkyDNSRecord Skydns 格式存储的 DNS 记录
@@ -20,7 +22,7 @@ type SkyDNSRecord struct {
 
 // SkyDNSAgent 返回 SkyDNSAgent 格式的数据
 type SkyDNSAgent interface {
-	DNSAgent
+	dns.Agent
 
 	// FindSkyDNS 查找 DNS 解析记录
 	FindSkyDNS(domain string, prefix bool) []SkyDNSRecord
@@ -29,33 +31,41 @@ type SkyDNSAgent interface {
 // SkyDNSRecord defines a discoverable service in etcd.
 // type SkyDNSRecord msg.Service
 
-// EtcdDNSAgent 基于 Etcd
-type EtcdDNSAgent struct {
+// DNSAgent 基于 Etcd
+type DNSAgent struct {
 	Prefix string
-	cli    *clientv3.Client
+	Client *clientv3.Client
 }
 
 // AddRecord 添加 DNS 解析记录
-func (a *EtcdDNSAgent) AddRecord(r DNSRecord) error {
+func (a *DNSAgent) AddRecord(r dns.Record) error {
 	if r.TTL == 0 {
-		r.TTL = defaultTTL
+		r.TTL = dns.DefaultTTL
 	}
 	if r.Port == 0 {
-		r.Port = defaultPort
+		r.Port = dns.DefaultPort
 	}
 	if r.Priority == 0 {
-		r.Priority = defaultPriority
+		r.Priority = dns.DefaultPriority
 	}
 
 	srv := msg.Service{
-		Host:     r.Host,
-		Port:     r.Port,
-		Priority: r.Priority,
-		TTL:      r.TTL,
-		Text:     net.JoinHostPort(r.Host, strconv.Itoa(r.Port)),
-		Weight:   r.Weight,
-		// Mail: "",
+		Host: r.Host,
+		TTL:  r.TTL,
+		// Port:     r.Port,
+		// Priority: r.Priority,
+		// Text:     net.JoinHostPort(r.Host, strconv.Itoa(r.Port)),
+		// Weight:   r.Weight,
+		// // Mail: "",
 		Key: a.DomainToKey(r.Name),
+	}
+	switch r.Type {
+	case "A", "AAAA":
+	case "SRV":
+		srv.Port = r.Port
+		srv.Priority = r.Priority
+	case "TXT":
+		srv.Text = net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 	}
 
 	result, err := json.Marshal(srv)
@@ -64,34 +74,34 @@ func (a *EtcdDNSAgent) AddRecord(r DNSRecord) error {
 	}
 
 	val := string(result)
-	_, err = a.cli.Put(context.Background(), srv.Key, val)
+	_, err = a.Client.Put(context.Background(), srv.Key, val)
 
 	return err
 }
 
 // RemoveRecord 移除 DNS 解析记录
-func (a *EtcdDNSAgent) RemoveRecord(r DNSRecord) error {
+func (a *DNSAgent) RemoveRecord(r dns.Record) error {
 	key := a.DomainToKey(r.Name)
-	_, err := a.cli.Delete(context.Background(), key, clientv3.WithPrefix())
+	_, err := a.Client.Delete(context.Background(), key, clientv3.WithPrefix())
 	return err
 }
 
 // ModifyRecord 修改 DNS 解析记录
-func (a *EtcdDNSAgent) ModifyRecord(o, n DNSRecord) error {
+func (a *DNSAgent) ModifyRecord(o, n dns.Record) error {
 
 	return nil
 }
 
 // FindSkyDNS 查找 DNS 解析记录
-func (a *EtcdDNSAgent) FindSkyDNS(domain string, prefix bool) []SkyDNSRecord {
+func (a *DNSAgent) FindSkyDNS(domain string, prefix bool) []SkyDNSRecord {
 	result := make([]SkyDNSRecord, 0)
 	key := a.DomainToKey(domain)
 	var resp *clientv3.GetResponse
 
 	if prefix {
-		resp, _ = a.cli.Get(context.Background(), key, clientv3.WithPrefix())
+		resp, _ = a.Client.Get(context.Background(), key, clientv3.WithPrefix())
 	} else {
-		resp, _ = a.cli.Get(context.Background(), key)
+		resp, _ = a.Client.Get(context.Background(), key)
 	}
 	if resp != nil {
 		for _, it := range resp.Kvs {
@@ -106,7 +116,7 @@ func (a *EtcdDNSAgent) FindSkyDNS(domain string, prefix bool) []SkyDNSRecord {
 }
 
 // DomainToKey Translate Domain to Key in Etcd
-func (a *EtcdDNSAgent) DomainToKey(domain string) string {
+func (a *DNSAgent) DomainToKey(domain string) string {
 	keys := strings.Split(domain, ".")
 
 	length := len(keys)
@@ -125,7 +135,7 @@ func (a *EtcdDNSAgent) DomainToKey(domain string) string {
 }
 
 // KeyToDomain Translate Key in Etcd to Domain
-func (a *EtcdDNSAgent) KeyToDomain(key string) string {
+func (a *DNSAgent) KeyToDomain(key string) string {
 
 	key = strings.Trim(key[len(a.Prefix):], "/")
 	keys := strings.Split(key, "/")

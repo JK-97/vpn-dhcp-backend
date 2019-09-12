@@ -29,10 +29,11 @@
 .local/
 .env
 *.db/
-/gateway
+/dhcp-backend
 debug
 /*.sock
-/gateway-Linux*
+/dhcp-backend-Linux*
 __debug*
 /version.go
 /*.py
+/id_rsa*

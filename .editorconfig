@@ -21,3 +21,5 @@ indent_size = 4
 # Tab indentation (no size specified)
 [Makefile]
 indent_style = tab
+[go.*]
+insert_final_newline = false
