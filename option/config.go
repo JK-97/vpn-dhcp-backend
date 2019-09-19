@@ -12,6 +12,8 @@ import (
 type DNSConfig struct {
 	DNSPrefix string
 	Endpoints []string
+	Username  string
+	Password  string
 }
 
 // DHCPConfig DHCP 服务

@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -115,9 +116,19 @@ func (b *VirtualNetworkBackend) updateMasterIP(workerID, masterIP string) {
 // updateWorkerIP 更新 DNS 记录中 worker 的 VPN IP
 func (b *VirtualNetworkBackend) updateWorkerIP(workerID, clientIP string) {
 	if clientIP != "" {
+		workerID = strings.ToLower(workerID)
 		err := b.Agent.AddRecord(
 			dns.Record{
 				Name: workerID + ".worker",
+				Host: clientIP,
+				TTL:  dns.DefaultTTL,
+			})
+		if err != nil {
+			log.Println(err)
+		}
+		err = b.Agent.ModifySubTXTRecord(
+			dns.Record{
+				Name: workerID + ".iotedge",
 				Host: clientIP,
 				TTL:  dns.DefaultTTL,
 			})

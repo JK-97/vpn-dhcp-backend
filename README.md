@@ -3,12 +3,14 @@
 - [DHCP Backend](#dhcp-backend)
   - [编译项目](#%e7%bc%96%e8%af%91%e9%a1%b9%e7%9b%ae)
     - [Prerequisite](#prerequisite)
+    - [编译项目](#%e7%bc%96%e8%af%91%e9%a1%b9%e7%9b%ae-1)
   - [DNS](#dns)
     - [添加/覆盖 DNS 解析记录](#%e6%b7%bb%e5%8a%a0%e8%a6%86%e7%9b%96-dns-%e8%a7%a3%e6%9e%90%e8%ae%b0%e5%bd%95)
     - [删除 DNS 解析记录](#%e5%88%a0%e9%99%a4-dns-%e8%a7%a3%e6%9e%90%e8%ae%b0%e5%bd%95)
     - [删除 DNS 解析记录](#%e5%88%a0%e9%99%a4-dns-%e8%a7%a3%e6%9e%90%e8%ae%b0%e5%bd%95-1)
   - [设备接入](#%e8%ae%be%e5%a4%87%e6%8e%a5%e5%85%a5)
     - [使用 WorkerID 和 Ticket 换取 Key](#%e4%bd%bf%e7%94%a8-workerid-%e5%92%8c-ticket-%e6%8d%a2%e5%8f%96-key)
+    - [添加 VPN Master](#%e6%b7%bb%e5%8a%a0-vpn-master)
     - [初始化 VPN](#%e5%88%9d%e5%a7%8b%e5%8c%96-vpn)
       - [初始化 OpenVPN](#%e5%88%9d%e5%a7%8b%e5%8c%96-openvpn)
       - [初始化 WireGuard](#%e5%88%9d%e5%a7%8b%e5%8c%96-wireguard)
@@ -25,7 +27,17 @@
 
 ```shell
 go generate main.go
+```
+### 编译项目
+
+```shell
 go build
+```
+
+在 Windows 上交叉编译
+
+```shell
+./build.ps1
 ```
 
 ## DNS
@@ -163,6 +175,15 @@ Content-Type: application/json
 | `key`         | `string` | 生成的 Key                     |
 | `deadLine`    | `int`    | Unix 时间戳，Ticket 的超时时间 |
 | `remainCount` | `int`    | Ticket 的剩余使用次数          |
+
+### 添加 VPN Master
+
+```shell
+etcdctl put "/gw/openvpn/10.53.1.218" '{"host":"10.53.1.218","type":"openvpn","count":0}'
+etcdctl put "/gw/wg/10.53.1.218" '{"host":"10.53.1.218","type":"wg","count":0}'
+etcdctl put "/gw/wg/10.53.1.219" '{"host":"10.53.1.219","type":"wg","count":0}'
+etcdctl put "/gw/openvpn/10.53.1.220" '{"host":"10.53.1.220","type":"openvpn","count":0}'
+```
 
 ### 初始化 VPN
 

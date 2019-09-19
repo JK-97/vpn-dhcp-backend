@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/coredns/coredns/plugin/etcd/msg"
 	"github.com/coreos/etcd/clientv3"
@@ -16,7 +17,8 @@ import (
 
 // SkyDNSRecord Skydns 格式存储的 DNS 记录
 type SkyDNSRecord struct {
-	Name string `json:"name"`
+	Name      string `json:"name"`
+	Timestamp int64  `json:"timestamp,omitempty"`
 	msg.Service
 }
 
@@ -65,10 +67,11 @@ func (a *DNSAgent) AddRecord(r dns.Record) error {
 		srv.Port = r.Port
 		srv.Priority = r.Priority
 	case "TXT":
+		srv.Host = ""
 		srv.Text = net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 	}
 
-	result, err := json.Marshal(srv)
+	result, err := json.Marshal(SkyDNSRecord{Service: srv, Timestamp: time.Now().Unix()})
 	if err != nil {
 		return err
 	}
@@ -88,6 +91,59 @@ func (a *DNSAgent) RemoveRecord(r dns.Record) error {
 
 // ModifyRecord 修改 DNS 解析记录
 func (a *DNSAgent) ModifyRecord(o, n dns.Record) error {
+
+	return nil
+}
+
+// ModifySubTXTRecord 修改指定的一级域名下所有的 TXT 记录
+func (a *DNSAgent) ModifySubTXTRecord(root dns.Record) error {
+	key := a.DomainToKey(root.Name)
+
+	resp, err := a.Client.Get(context.Background(), key)
+	if err != nil {
+		return err
+	}
+	if resp.Count == 0 {
+		a.AddRecord(root)
+		return nil
+	}
+
+	it := resp.Kvs[0]
+	var srv SkyDNSRecord
+	if err := json.Unmarshal(it.Value, &srv); err == nil {
+		srv.Name = a.KeyToDomain(string(it.Key))
+		if srv.Host == root.Host {
+			// IP 地址未变动
+			return nil
+		}
+	}
+	result := make([]SkyDNSRecord, 0)
+	resp, _ = a.Client.Get(context.Background(), key, clientv3.WithPrefix())
+	if resp != nil {
+		for _, it := range resp.Kvs {
+			var srv SkyDNSRecord
+			if err := json.Unmarshal(it.Value, &srv); err == nil {
+				if srv.Text != "" {
+					continue
+				}
+				srv.Key = string(it.Key)
+				srv.Name = a.KeyToDomain(string(it.Key))
+				_, p, err := net.SplitHostPort(srv.Text)
+				if err != nil {
+					continue
+				}
+				srv.Text = net.JoinHostPort(root.Host, p)
+				result = append(result, srv)
+			}
+		}
+	}
+	for _, it := range result {
+		val, err := json.Marshal(it)
+		if err == nil {
+			continue
+		}
+		a.Client.Put(context.Background(), it.Key, string(val))
+	}
 
 	return nil
 }
@@ -117,6 +173,7 @@ func (a *DNSAgent) FindSkyDNS(domain string, prefix bool) []SkyDNSRecord {
 
 // DomainToKey Translate Domain to Key in Etcd
 func (a *DNSAgent) DomainToKey(domain string) string {
+	domain = strings.ToLower(domain) // 域名必须是全小写
 	keys := strings.Split(domain, ".")
 
 	length := len(keys)
@@ -128,7 +185,7 @@ func (a *DNSAgent) DomainToKey(domain string) string {
 			continue
 		}
 		w.WriteRune('/')
-		w.WriteString(keys[index])
+		w.WriteString(strings.ToLower(keys[index]))
 	}
 	w.WriteRune('/')
 	return w.String()

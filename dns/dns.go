@@ -30,4 +30,6 @@ type Agent interface {
 	RemoveRecord(r Record) error
 	// ModifyRecord 修改 DNS 解析记录
 	ModifyRecord(o, n Record) error
+	// ModifySubTXTRecord 修改指定的一级域名下所有的 TXT 记录
+	ModifySubTXTRecord(root Record) error
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"dhcp-backend/vpn"
 	"encoding/json"
+	"strings"
 
 	"github.com/coreos/etcd/clientv3"
 )
@@ -15,7 +16,7 @@ type WorkerClient struct {
 }
 
 func (w *WorkerClient) idToKey(workerID string) string {
-	return w.Prefix + "/" + workerID
+	return w.Prefix + "/" + strings.ToLower(workerID)
 }
 
 // AddIP 添加设备的 IP

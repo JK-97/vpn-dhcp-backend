@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -34,6 +35,8 @@ func readRecordFromRequest(w http.ResponseWriter, r *http.Request) (rec dns.Reco
 		return
 	}
 	defer r.Body.Close()
+
+	log.Println("Body:", string(b))
 	if err = json.Unmarshal(b, &rec); err != nil {
 		Error(w, err.Error(), http.StatusBadRequest)
 	}

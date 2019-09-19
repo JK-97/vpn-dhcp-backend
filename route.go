@@ -16,11 +16,18 @@ import (
 	"go.mongodb.org/mongo-driver/x/mongo/driver/connstring"
 )
 
+func getEtcdClient(config *option.DNSConfig) (kvc *clientv3.Client, err error) {
+	kvc, err = clientv3.New(clientv3.Config{
+		Endpoints: config.Endpoints,
+		Username:  config.Username,
+		Password:  config.Password,
+	})
+	return
+}
+
 func appendDNSRoute(router *mux.Router, config *option.DNSConfig) *serve.DNSBackend {
 
-	kvc, err := clientv3.New(clientv3.Config{
-		Endpoints: config.Endpoints,
-	})
+	kvc, err := getEtcdClient(config)
 
 	if err != nil {
 		panic(err)
@@ -41,9 +48,7 @@ func appendDNSRoute(router *mux.Router, config *option.DNSConfig) *serve.DNSBack
 
 func appendDHCPRouter(router *mux.Router, config *option.DHCPConfig, pri *rsa.PrivateKey) *serve.VirtualNetworkBackend {
 
-	kvc, err := clientv3.New(clientv3.Config{
-		Endpoints: config.Endpoints,
-	})
+	kvc, err := getEtcdClient(&config.DNSConfig)
 
 	if err != nil {
 		panic(err)
