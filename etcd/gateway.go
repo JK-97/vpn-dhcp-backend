@@ -3,9 +3,9 @@ package etcd
 import (
 	"bytes"
 	"context"
+	"dhcp-backend/go-utils/logger"
 	"dhcp-backend/vpn"
 	"encoding/json"
-	"log"
 
 	"github.com/coreos/etcd/clientv3"
 )
@@ -32,7 +32,7 @@ func (c *VPNGatewayClient) gatewayToKey(gw *vpn.Gateway) string {
 func (c *VPNGatewayClient) SelectGateway(vpnType string) []*vpn.Gateway {
 	resp, err := c.Client.Get(context.Background(), c.Prefix+"/"+vpnType, clientv3.WithPrefix())
 	if err != nil {
-		log.Println(err)
+		logger.Info(err)
 		return nil
 	}
 	if resp.Count > 0 {

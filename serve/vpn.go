@@ -6,13 +6,13 @@ import (
 	"crypto/rsa"
 	"dhcp-backend/chaos"
 	"dhcp-backend/dns"
+	"dhcp-backend/go-utils/logger"
 	"dhcp-backend/vpn"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -108,7 +108,7 @@ func (b *VirtualNetworkBackend) updateMasterIP(workerID, masterIP string) {
 			TTL:  dns.DefaultTTL,
 		})
 	if err != nil {
-		log.Println(err)
+		logger.Info(err)
 	}
 
 }
@@ -124,7 +124,7 @@ func (b *VirtualNetworkBackend) updateWorkerIP(workerID, clientIP string) {
 				TTL:  dns.DefaultTTL,
 			})
 		if err != nil {
-			log.Println(err)
+			logger.Info(err)
 		}
 		err = b.Agent.ModifySubTXTRecord(
 			dns.Record{
@@ -133,15 +133,16 @@ func (b *VirtualNetworkBackend) updateWorkerIP(workerID, clientIP string) {
 				TTL:  dns.DefaultTTL,
 			})
 		if err != nil {
-			log.Println(err)
+			logger.Info(err)
 		}
 	}
 }
 
 func (b *VirtualNetworkBackend) tryConnect(gateway string, reader *bytes.Reader) (resp *http.Response, err error) {
+	logger.Info("Try Connect to", gateway)
 	req, err := http.NewRequest(http.MethodPost, b.agentURL(gateway), reader)
 	if err != nil {
-		log.Println(err)
+		logger.Info(err)
 		return
 	}
 
@@ -164,20 +165,20 @@ func (b *VirtualNetworkBackend) registerWorker(gateway string, workerID, clientI
 	}
 	buf, err := json.Marshal(data)
 	if err != nil {
-		log.Println(err, gateway, workerID, clientIP)
+		logger.Info(err, gateway, workerID, clientIP)
 		return
 	}
 	r := bytes.NewReader(buf)
-	log.Println("registerWorker")
+	logger.Info("registerWorker")
 	resp, err := b.HTTPClient.Post(url, mimeJSON, r)
 
 	if err != nil || resp.StatusCode >= 400 {
-		log.Println(resp, err)
+		logger.Info(resp, err)
 	}
 }
 
 func (b *VirtualNetworkBackend) register(workerID, vpnType string, gateway *string) (buffer []byte, masterIP string, err error) {
-
+	logger.Info("Register ", vpnType)
 	var p []byte
 	r := vpnIPRequest{
 		WorkerID: workerID,
@@ -185,7 +186,7 @@ func (b *VirtualNetworkBackend) register(workerID, vpnType string, gateway *stri
 	}
 	p, err = json.Marshal(r)
 	if err != nil {
-		log.Println(err)
+		logger.Info(err)
 		return
 	}
 
@@ -193,9 +194,17 @@ func (b *VirtualNetworkBackend) register(workerID, vpnType string, gateway *stri
 
 	var ok bool
 	var resp *http.Response
-	if *gateway == "" {
-
+	if *gateway != "" {
+		resp, err = b.tryConnect(*gateway, reader)
+		if err == nil {
+			ok = true
+		}
+	}
+	if !ok {
 		for _, gw := range b.selectGateway(vpnType) {
+			if gw == *gateway {
+				continue
+			}
 
 			resp, err = b.tryConnect(gw, reader)
 			if err != nil {
@@ -206,19 +215,14 @@ func (b *VirtualNetworkBackend) register(workerID, vpnType string, gateway *stri
 			*gateway = gw
 			break
 		}
-
-	} else {
-		resp, err = b.tryConnect(*gateway, reader)
-		if err != nil {
-			ok = true
-		}
 	}
+
 	if !ok {
 		err = errNoGatewayAvailable
 		return
 	}
 
-	log.Println(resp.Header)
+	logger.Info(resp.Header)
 
 	masterIP = resp.Header.Get("X-Master-IP")
 	clientIP := resp.Header.Get("X-Client-IP")
@@ -247,7 +251,7 @@ func (b *VirtualNetworkBackend) register(workerID, vpnType string, gateway *stri
 		if status, ok := ip.Status[vpnType]; ok {
 			masterIP = status.Master
 		} else {
-			log.Println("Failed to get master ip", workerID, vpnType)
+			logger.Info("Failed to get master ip", workerID, vpnType)
 		}
 	}
 
@@ -305,6 +309,7 @@ func (b *VirtualNetworkBackend) registerVPN(w http.ResponseWriter, r *http.Reque
 	var req registerRequest
 	err := b.parseRegisterRequest(w, r, &req)
 	if err != nil {
+		logger.Info("RegisterRequest Failed", err)
 		return err
 	}
 
@@ -332,7 +337,8 @@ func (b *VirtualNetworkBackend) registerVPN(w http.ResponseWriter, r *http.Reque
 	buff, masterIP, err := b.register(req.WorkerID, vpnType, &gateway)
 
 	if err != nil {
-		Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Info("Register VPN Failed", err)
+		Error(w, err.Error(), http.StatusInsufficientStorage)
 		return err
 	}
 
@@ -345,7 +351,7 @@ func (b *VirtualNetworkBackend) registerVPN(w http.ResponseWriter, r *http.Reque
 
 	header.Set("X-Master-IP", masterIP)
 	header.Set("X-Ceph-Public-IP", gateway)
-	log.Println("Rersponse Header:", header)
+	logger.Info("Rersponse Header:", header)
 
 	w.WriteHeader(http.StatusOK)
 	writer.WriteChaos(512)

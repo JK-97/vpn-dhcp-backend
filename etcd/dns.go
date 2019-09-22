@@ -17,7 +17,7 @@ import (
 
 // SkyDNSRecord Skydns 格式存储的 DNS 记录
 type SkyDNSRecord struct {
-	Name      string `json:"name"`
+	Name      string `json:"name,omitempty"`
 	Timestamp int64  `json:"timestamp,omitempty"`
 	msg.Service
 }
@@ -116,6 +116,7 @@ func (a *DNSAgent) ModifySubTXTRecord(root dns.Record) error {
 			// IP 地址未变动
 			return nil
 		}
+		a.AddRecord(root)
 	}
 	result := make([]SkyDNSRecord, 0)
 	resp, _ = a.Client.Get(context.Background(), key, clientv3.WithPrefix())

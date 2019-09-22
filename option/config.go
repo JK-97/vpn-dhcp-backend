@@ -22,6 +22,7 @@ type DHCPConfig struct {
 	WorkerPrefix  string
 	GatewayPrefix string
 	RegisterPath  string
+	VPNAgentPort  int
 }
 
 // ApplicationConfig 应用程序配置
@@ -30,6 +31,7 @@ type ApplicationConfig struct {
 	PublicKey  *rsa.PublicKey
 	MongoURI   string
 	DHCPConfig
+	Addr string
 }
 
 type appConfig struct {
@@ -37,6 +39,7 @@ type appConfig struct {
 	PublicKey  string
 	MongoURI   string
 	DHCPConfig
+	Addr string
 }
 
 // ReadConfigFile 从文件中读取配置
@@ -60,6 +63,11 @@ func ReadConfigFile(filename string) *ApplicationConfig {
 
 	result.MongoURI = config.MongoURI
 	result.DHCPConfig = config.DHCPConfig
+
+	if config.Addr == "" {
+		config.Addr = ":1054"
+	}
+	result.Addr = config.Addr
 
 	return result
 }

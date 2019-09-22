@@ -3,10 +3,10 @@ package serve
 import (
 	"dhcp-backend/dns"
 	"dhcp-backend/etcd"
+	"dhcp-backend/go-utils/logger"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -15,6 +15,7 @@ var (
 	errMissingName        = errors.New("Missing `name`")
 	errMissingHost        = errors.New("Missing `host`")
 	errMissingType        = errors.New("Missing `type`")
+	errInvalidName        = errors.New("Invalid `name`")
 	errNoGatewayAvailable = errors.New("No Gateway Available")
 	errKeyNotMatch        = errors.New("Key Not Match")
 )
@@ -36,7 +37,7 @@ func readRecordFromRequest(w http.ResponseWriter, r *http.Request) (rec dns.Reco
 	}
 	defer r.Body.Close()
 
-	log.Println("Body:", string(b))
+	logger.Info("Body:", string(b))
 	if err = json.Unmarshal(b, &rec); err != nil {
 		Error(w, err.Error(), http.StatusBadRequest)
 	}
@@ -58,6 +59,21 @@ func (b *DNSBackend) AddRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 域名只接收 数字、字母、'.'、'-'
+	for _, char := range rec.Name {
+		if char >= '0' && char <= '9' {
+			continue
+		} else if char >= 'A' && char <= 'Z' {
+			continue
+		} else if char >= 'a' && char <= 'z' {
+			continue
+		} else if char == '.' || char == '-' {
+			continue
+		}
+		Error(w, errInvalidName.Error(), http.StatusBadRequest)
+		return
+	}
+
 	if strings.HasSuffix(rec.Name, ".master") || strings.HasSuffix(rec.Name, ".worker") {
 		if strings.Count(rec.Name, ".") < 2 {
 			Error(w, "Not Allowed", http.StatusForbidden)
@@ -67,6 +83,7 @@ func (b *DNSBackend) AddRecord(w http.ResponseWriter, r *http.Request) {
 
 	err = b.Agent.AddRecord(rec)
 	if err != nil {
+		logger.Info("AddRecord", err)
 		Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -81,6 +98,7 @@ func (b *DNSBackend) RemoveRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	err = b.Agent.RemoveRecord(rec)
 	if err != nil {
+		logger.Info("RemoveRecord", err)
 		Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

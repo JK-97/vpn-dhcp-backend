@@ -3,10 +3,10 @@ package main
 import (
 	"crypto/rsa"
 	"dhcp-backend/etcd"
+	"dhcp-backend/go-utils/logger"
 	"dhcp-backend/option"
 	"dhcp-backend/serve"
 	"encoding/base64"
-	"log"
 	"net/http"
 
 	"github.com/coreos/etcd/clientv3"
@@ -70,7 +70,7 @@ func appendDHCPRouter(router *mux.Router, config *option.DHCPConfig, pri *rsa.Pr
 			Client: kvc,
 		},
 		HTTPClient:   http.DefaultClient,
-		AgentPort:    9095,
+		AgentPort:    config.VPNAgentPort,
 		Agent:        &agent,
 		Encoding:     base64.NewEncoding(codingTable).WithPadding(base64.NoPadding),
 		RegisterPath: config.RegisterPath,
@@ -85,7 +85,7 @@ func appendDHCPRouter(router *mux.Router, config *option.DHCPConfig, pri *rsa.Pr
 }
 
 func appendBootstrapRouter(router *mux.Router, mongoURI string, pub *rsa.PublicKey) *serve.BootStrapBackend {
-	log.Println("Enable Bootstrap")
+	logger.Info("Enable Bootstrap")
 	cs, err := connstring.Parse(mongoURI)
 	if err != nil {
 		panic(err)

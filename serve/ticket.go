@@ -3,10 +3,10 @@ package serve
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"dhcp-backend/go-utils/logger"
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 
@@ -69,7 +69,7 @@ func (b *BootStrapBackend) getKey(workerID string) []byte {
 func generateKey(pub *rsa.PublicKey, workerID string) (p []byte) {
 	p, err := rsa.EncryptPKCS1v15(rand.Reader, pub, []byte(workerID))
 	if err != nil {
-		log.Println(err)
+		logger.Info(err)
 		return nil
 	}
 	return
@@ -162,6 +162,63 @@ func (b *BootStrapBackend) GenerateKey(w http.ResponseWriter, r *http.Request) {
 	if !ticket.DeadLine.IsZero() {
 		data["deadLine"] = ticket.DeadLine.Unix()
 	}
-	log.Println("Generate Ticket:", ticket, keyString)
+	logger.Info("Generate Ticket:", ticket, keyString)
+	WriteData(w, &data)
+}
+
+type genTicketRequest struct {
+	WorkerID    string `json:"wid"`
+	TTL         int64  `json:"ttl"`
+	RemainCount uint   `bson:"remainCount"`
+}
+
+// AddTicket 添加 ticket
+func (b *BootStrapBackend) AddTicket(w http.ResponseWriter, r *http.Request) {
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var req genTicketRequest
+	err = json.Unmarshal(buf, &req)
+	if err != nil {
+		Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var ticket bootstrapTicket
+
+	if req.WorkerID == "" {
+		if req.RemainCount == 0 {
+			Error(w, "RemainCount should grater than 0", http.StatusBadRequest)
+			return
+		}
+		ticket.RemainCount = int(req.RemainCount)
+	} else {
+		if req.TTL < 86400 {
+			req.TTL = 86400
+		}
+		ticket.WorkerID = req.WorkerID
+		ticket.RemainCount = 999
+		ticket.DeadLine = time.Now().Add(time.Duration(req.TTL) * time.Second)
+	}
+
+	collection := b.DB.Collection(collectionTickt)
+
+	for {
+		ticket.ID = getRandomString(6)
+		_, err := collection.InsertOne(r.Context(), ticket)
+		if err == nil {
+			break
+		}
+	}
+
+	data := map[string]interface{}{
+		"Ticket":      ticket.ID,
+		"RemainCount": ticket.RemainCount,
+		"WorkerID":    ticket.WorkerID,
+		"DeadLine":    ticket.DeadLine,
+	}
+
 	WriteData(w, &data)
 }

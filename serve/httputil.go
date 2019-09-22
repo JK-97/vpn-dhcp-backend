@@ -1,8 +1,8 @@
 package serve
 
 import (
+	"dhcp-backend/go-utils/logger"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 )
@@ -25,7 +25,7 @@ func Error(w http.ResponseWriter, reason string, code int) {
 
 	rs, err := json.Marshal(e)
 	if err != nil {
-		log.Fatalln(err)
+		logger.Fatal(err)
 	}
 
 	w.Write(rs)
@@ -45,7 +45,7 @@ type notFoundHandler struct {
 }
 
 func (h *notFoundHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("In: 404 \t%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+	logger.Infof("In: 404 \t%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
 
 	ErrorNotFound(w)
 }
@@ -79,7 +79,7 @@ func WriteResult(w http.ResponseWriter, result *APIResult) {
 
 	rs, err := json.Marshal(result)
 	if err != nil {
-		log.Fatalln(err)
+		logger.Fatal(err)
 	}
 
 	w.Write(rs)
@@ -93,10 +93,10 @@ func WriteSucess(w http.ResponseWriter) {
 // SimpleLoggingMw 简单的日志中间件
 func SimpleLoggingMw(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("In:\t%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+		logger.Infof("In: \t%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		cost := time.Since(start)
-		log.Printf("End:\t%s %s %s %dms\n", r.RemoteAddr, r.Method, r.URL, cost.Nanoseconds()/int64(time.Millisecond))
+		logger.Infof("End:\t%s %s %s %dms\n", r.RemoteAddr, r.Method, r.URL, cost.Nanoseconds()/int64(time.Millisecond))
 	})
 }
