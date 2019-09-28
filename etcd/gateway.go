@@ -7,7 +7,7 @@ import (
 	"dhcp-backend/vpn"
 	"encoding/json"
 
-	"github.com/coreos/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3"
 )
 
 // VPNGatewayClient 基于 Etcd 的 VPNGatewayClient 实现

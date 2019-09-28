@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/coreos/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3"
 )
 
 // WorkerClient 基于 Etcd 的 WorkerClient 实现

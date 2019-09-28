@@ -9,7 +9,7 @@ import (
 	"encoding/base64"
 	"net/http"
 
-	"github.com/coreos/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

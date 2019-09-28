@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/coredns/coredns/plugin/etcd/msg"
-	"github.com/coreos/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3"
 
 	dns "dhcp-backend/dns"
 )

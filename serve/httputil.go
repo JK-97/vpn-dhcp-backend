@@ -3,6 +3,7 @@ package serve
 import (
 	"dhcp-backend/go-utils/logger"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 )
@@ -97,6 +98,35 @@ func SimpleLoggingMw(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		cost := time.Since(start)
-		logger.Infof("End:\t%s %s %s %dms\n", r.RemoteAddr, r.Method, r.URL, cost.Nanoseconds()/int64(time.Millisecond))
+
+		resp := r.Response
+		if resp != nil {
+			logger.Infof("End:\t%s %s %s %dms %s\n", r.RemoteAddr, r.Method, r.URL, cost.Nanoseconds()/int64(time.Millisecond), resp.Status)
+		} else {
+			logger.Infof("End:\t%s %s %s %dms\n", r.RemoteAddr, r.Method, r.URL, cost.Nanoseconds()/int64(time.Millisecond))
+		}
+
+	})
+}
+
+// RecoverMiddleware panic 发生时，返回结果
+func RecoverMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if r := recover(); r != nil {
+				var err error
+				switch x := r.(type) {
+				case string:
+					err = errors.New(x)
+				case error:
+					err = x
+				default:
+					err = errors.New("Unknown panic")
+				}
+				logger.Error(err)
+				Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
 	})
 }

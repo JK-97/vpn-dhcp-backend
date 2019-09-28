@@ -151,6 +151,7 @@ func (b *VirtualNetworkBackend) tryConnect(gateway string, reader *bytes.Reader)
 		return
 	}
 	if resp.StatusCode >= 400 {
+		logger.Error("Receive From:", gateway, resp.Status)
 		err = errors.New(resp.Status)
 	}
 	return
@@ -177,7 +178,7 @@ func (b *VirtualNetworkBackend) registerWorker(gateway string, workerID, clientI
 	}
 }
 
-func (b *VirtualNetworkBackend) register(workerID, vpnType string, gateway *string) (buffer []byte, masterIP string, err error) {
+func (b *VirtualNetworkBackend) register(workerID, vpnType, remoteAddr string, gateway *string) (buffer []byte, masterIP string, err error) {
 	logger.Info("Register ", vpnType)
 	var p []byte
 	r := vpnIPRequest{
@@ -232,10 +233,11 @@ func (b *VirtualNetworkBackend) register(workerID, vpnType string, gateway *stri
 	if clientIP != "" {
 		if masterIP != "" {
 			status := vpn.WorkerIPStatus{
-				Addr:    clientIP,
-				Type:    vpnType,
-				Gateway: *gateway,
-				Master:  masterIP,
+				Addr:       clientIP,
+				Type:       vpnType,
+				Gateway:    *gateway,
+				Master:     masterIP,
+				RegisterIP: remoteAddr,
 			}
 			err = b.WorkerClient.AddIP(workerID, status)
 		}
@@ -297,6 +299,7 @@ func (b *VirtualNetworkBackend) parseRegisterRequest(w http.ResponseWriter, r *h
 		return err
 	}
 	if !b.verifyKey(req) {
+		logger.Warn("Key not match")
 		err = errKeyNotMatch
 		Error(w, err.Error(), http.StatusUnauthorized)
 		return err
@@ -334,7 +337,7 @@ func (b *VirtualNetworkBackend) registerVPN(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	buff, masterIP, err := b.register(req.WorkerID, vpnType, &gateway)
+	buff, masterIP, err := b.register(req.WorkerID, vpnType, r.RemoteAddr, &gateway)
 
 	if err != nil {
 		logger.Info("Register VPN Failed", err)

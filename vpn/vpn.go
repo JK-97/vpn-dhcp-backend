@@ -9,11 +9,12 @@ const (
 
 // WorkerIPStatus 设备 IP 的状态
 type WorkerIPStatus struct {
-	Addr     string `json:"addr"`
-	Type     string `json:"type"`
-	Gateway  string `json:"gateway"`
-	Master   string `json:"master"`
-	Disabled bool   `json:"disabled,omitempty"`
+	Addr       string `json:"addr"`
+	Type       string `json:"type"`
+	Gateway    string `json:"gateway"`
+	Master     string `json:"master"`
+	RegisterIP string `json:"regIP,omitempty"` // 注册 vpn 时使用的 IP
+	Disabled   bool   `json:"disabled,omitempty"`
 }
 
 // WorkerIP 设备的 IP 地址

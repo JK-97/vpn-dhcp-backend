@@ -1,6 +1,7 @@
 package serve
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"dhcp-backend/go-utils/logger"
@@ -75,10 +76,10 @@ func generateKey(pub *rsa.PublicKey, workerID string) (p []byte) {
 	return
 }
 
-func (b *BootStrapBackend) generateKey(w http.ResponseWriter, workerID string, ticket *bootstrapTicket) (p []byte) {
+func (b *BootStrapBackend) generateKey(ctx context.Context, w http.ResponseWriter, workerID string, ticket *bootstrapTicket) (p []byte) {
 	collection := b.DB.Collection(collectionTickt)
 	result := collection.FindOneAndUpdate(
-		nil,
+		ctx,
 		bson.M{"_id": ticket.ID, "remainCount": bson.M{"$gt": 0}},
 		bson.M{"$inc": bson.M{"remainCount": -1}},
 	)
@@ -145,7 +146,7 @@ func (b *BootStrapBackend) GenerateKey(w http.ResponseWriter, r *http.Request) {
 
 	keyBytes := b.getKey(workerID)
 	if keyBytes == nil {
-		keyBytes = b.generateKey(w, workerID, &ticket)
+		keyBytes = b.generateKey(r.Context(), w, workerID, &ticket)
 
 		if keyBytes == nil {
 			ErrorWithCode(w, http.StatusUnauthorized)

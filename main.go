@@ -23,6 +23,7 @@ func main() {
 
 	r.NotFoundHandler = serve.NewNotFoundHandler()
 	r.Use(serve.SimpleLoggingMw)
+	r.Use(serve.RecoverMiddleware)
 
 	router := r.PathPrefix("/api/v1/dns").Subrouter()
 
