@@ -4,12 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"dhcp-backend/go-utils/logger"
 	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"gitlab.jiangxingai.com/applications/base-modules/internal-sdk/go-utils/logger"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"

@@ -2,15 +2,16 @@ package main
 
 import (
 	"crypto/rsa"
-	"dhcp-backend/etcd"
-	"dhcp-backend/go-utils/logger"
-	"dhcp-backend/option"
-	"dhcp-backend/serve"
 	"encoding/base64"
 	"net/http"
 
-	"go.etcd.io/etcd/clientv3"
+	"gitlab.jiangxingai.com/applications/base-modules/internal-sdk/go-utils/logger"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/etcd"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/option"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/serve"
+
 	"github.com/gorilla/mux"
+	"go.etcd.io/etcd/clientv3"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/mongo/driver/connstring"

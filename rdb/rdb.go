@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	bk "dhcp-backend"
+	bk "gitlab.jiangxingai.com/edgenode/dhcp-backend"
 
 	"github.com/jinzhu/gorm"
 	pdnsmodel "github.com/lrh3321/wps/pdns/model"

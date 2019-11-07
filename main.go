@@ -4,8 +4,8 @@ package main
 import (
 	"net/http"
 
-	"dhcp-backend/option"
-	"dhcp-backend/serve"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/option"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/serve"
 
 	"github.com/gorilla/mux"
 )

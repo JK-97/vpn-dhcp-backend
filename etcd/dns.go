@@ -12,7 +12,7 @@ import (
 	"github.com/coredns/coredns/plugin/etcd/msg"
 	"go.etcd.io/etcd/clientv3"
 
-	dns "dhcp-backend/dns"
+	dns "gitlab.jiangxingai.com/edgenode/dhcp-backend/dns"
 )
 
 // SkyDNSRecord Skydns 格式存储的 DNS 记录
@@ -99,7 +99,8 @@ func (a *DNSAgent) ModifyRecord(o, n dns.Record) error {
 func (a *DNSAgent) ModifySubTXTRecord(root dns.Record) error {
 	key := a.DomainToKey(root.Name)
 
-	resp, err := a.Client.Get(context.Background(), key)
+	ctx := context.Background()
+	resp, err := a.Client.Get(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -119,7 +120,7 @@ func (a *DNSAgent) ModifySubTXTRecord(root dns.Record) error {
 		a.AddRecord(root)
 	}
 	result := make([]SkyDNSRecord, 0)
-	resp, _ = a.Client.Get(context.Background(), key, clientv3.WithPrefix())
+	resp, _ = a.Client.Get(ctx, key, clientv3.WithPrefix())
 	if resp != nil {
 		for _, it := range resp.Kvs {
 			var srv SkyDNSRecord
@@ -140,10 +141,10 @@ func (a *DNSAgent) ModifySubTXTRecord(root dns.Record) error {
 	}
 	for _, it := range result {
 		val, err := json.Marshal(it)
-		if err == nil {
+		if err != nil {
 			continue
 		}
-		a.Client.Put(context.Background(), it.Key, string(val))
+		a.Client.Put(ctx, it.Key, string(val))
 	}
 
 	return nil
@@ -155,10 +156,11 @@ func (a *DNSAgent) FindSkyDNS(domain string, prefix bool) []SkyDNSRecord {
 	key := a.DomainToKey(domain)
 	var resp *clientv3.GetResponse
 
+	ctx := context.Background()
 	if prefix {
-		resp, _ = a.Client.Get(context.Background(), key, clientv3.WithPrefix())
+		resp, _ = a.Client.Get(ctx, key, clientv3.WithPrefix())
 	} else {
-		resp, _ = a.Client.Get(context.Background(), key)
+		resp, _ = a.Client.Get(ctx, key)
 	}
 	if resp != nil {
 		for _, it := range resp.Kvs {

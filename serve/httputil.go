@@ -1,11 +1,12 @@
 package serve
 
 import (
-	"dhcp-backend/go-utils/logger"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
+
+	"gitlab.jiangxingai.com/applications/base-modules/internal-sdk/go-utils/logger"
 )
 
 const mimeJSON = "application/json; charset=utf-8"

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"dhcp-backend/option"
-	"dhcp-backend/serve"
 	"net/http"
+
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/option"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/serve"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

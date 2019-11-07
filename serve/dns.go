@@ -1,14 +1,15 @@
 package serve
 
 import (
-	"dhcp-backend/dns"
-	"dhcp-backend/etcd"
-	"dhcp-backend/go-utils/logger"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"gitlab.jiangxingai.com/applications/base-modules/internal-sdk/go-utils/logger"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/dns"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/etcd"
 )
 
 var (

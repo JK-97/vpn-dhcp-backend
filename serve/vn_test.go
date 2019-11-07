@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"dhcp-backend/etcd"
-	"dhcp-backend/vpn"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/etcd"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/vpn"
 
 	"go.etcd.io/etcd/clientv3"
 )

@@ -2,9 +2,10 @@ package etcd
 
 import (
 	"context"
-	"dhcp-backend/vpn"
 	"encoding/json"
 	"strings"
+
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/vpn"
 
 	"go.etcd.io/etcd/clientv3"
 )

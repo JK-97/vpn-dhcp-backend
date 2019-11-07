@@ -1,9 +1,10 @@
 package etcd
 
 import (
-	dns "dhcp-backend/dns"
 	"os"
 	"testing"
+
+	dns "gitlab.jiangxingai.com/edgenode/dhcp-backend/dns"
 
 	"go.etcd.io/etcd/clientv3"
 )

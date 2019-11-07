@@ -4,10 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
-	"dhcp-backend/chaos"
-	"dhcp-backend/dns"
-	"dhcp-backend/go-utils/logger"
-	"dhcp-backend/vpn"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -18,6 +14,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gitlab.jiangxingai.com/applications/base-modules/internal-sdk/go-utils/logger"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/chaos"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/dns"
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/vpn"
 )
 
 // VirtualNetworkBackend 管理虚拟网络

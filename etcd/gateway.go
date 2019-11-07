@@ -3,9 +3,11 @@ package etcd
 import (
 	"bytes"
 	"context"
-	"dhcp-backend/go-utils/logger"
-	"dhcp-backend/vpn"
 	"encoding/json"
+
+	"gitlab.jiangxingai.com/edgenode/dhcp-backend/vpn"
+
+	"gitlab.jiangxingai.com/applications/base-modules/internal-sdk/go-utils/logger"
 
 	"go.etcd.io/etcd/clientv3"
 )
