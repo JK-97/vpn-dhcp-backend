@@ -151,9 +151,13 @@ func (b *VirtualNetworkBackend) tryConnect(gateway string, reader *bytes.Reader)
 	if err != nil {
 		return
 	}
+
 	if resp.StatusCode >= 400 {
 		logger.Error("Receive From:", gateway, resp.Status)
 		err = errors.New(resp.Status)
+		if resp.Body != nil {
+			defer resp.Body.Close()
+		}
 	}
 	return
 }
@@ -173,6 +177,9 @@ func (b *VirtualNetworkBackend) registerWorker(gateway string, workerID, clientI
 	r := bytes.NewReader(buf)
 	logger.Info("registerWorker")
 	resp, err := b.HTTPClient.Post(url, mimeJSON, r)
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
 
 	if err != nil || resp.StatusCode >= 400 {
 		logger.Info(resp, err)
@@ -268,6 +275,7 @@ func (b *VirtualNetworkBackend) register(workerID, vpnType, remoteAddr string, g
 	}
 
 	buffer, err = ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 
 	return
 }
@@ -293,6 +301,7 @@ func (b *VirtualNetworkBackend) parseRegisterRequest(w http.ResponseWriter, r *h
 	var buf []byte
 	var err error
 	buf, err = b.Verify(r.Body)
+	defer r.Body.Close()
 
 	err = json.Unmarshal(buf, req)
 	if err != nil {

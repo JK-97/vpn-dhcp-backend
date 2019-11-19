@@ -133,6 +133,8 @@ func (b *BootStrapBackend) GenerateKey(w http.ResponseWriter, r *http.Request) {
 		Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
+
 	var req generateKeyRequest
 	err = json.Unmarshal(buf, &req)
 	if err != nil {
@@ -181,6 +183,8 @@ func (b *BootStrapBackend) AddTicket(w http.ResponseWriter, r *http.Request) {
 		Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
+
 	var req genTicketRequest
 	err = json.Unmarshal(buf, &req)
 	if err != nil {
