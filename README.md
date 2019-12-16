@@ -4,6 +4,24 @@
   - [编译项目](#%e7%bc%96%e8%af%91%e9%a1%b9%e7%9b%ae)
     - [Prerequisite](#prerequisite)
     - [编译项目](#%e7%bc%96%e8%af%91%e9%a1%b9%e7%9b%ae-1)
+  - [部署](#%e9%83%a8%e7%bd%b2)
+    - [部署 etcd](#%e9%83%a8%e7%bd%b2-etcd)
+      - [下载 etcd](#%e4%b8%8b%e8%bd%bd-etcd)
+      - [添加配置到 Supervisor](#%e6%b7%bb%e5%8a%a0%e9%85%8d%e7%bd%ae%e5%88%b0-supervisor)
+    - [部署 CoreDNS](#%e9%83%a8%e7%bd%b2-coredns)
+      - [下载 CoreDNS](#%e4%b8%8b%e8%bd%bd-coredns)
+      - [生成 CoreDNS 配置](#%e7%94%9f%e6%88%90-coredns-%e9%85%8d%e7%bd%ae)
+      - [添加配置到 Supervisor](#%e6%b7%bb%e5%8a%a0%e9%85%8d%e7%bd%ae%e5%88%b0-supervisor-1)
+    - [部署 MongoDB](#%e9%83%a8%e7%bd%b2-mongodb)
+    - [部署 DHCP Backend](#%e9%83%a8%e7%bd%b2-dhcp-backend)
+      - [生成公私钥对](#%e7%94%9f%e6%88%90%e5%85%ac%e7%a7%81%e9%92%a5%e5%af%b9)
+      - [生成 DHCP Backend 配置](#%e7%94%9f%e6%88%90-dhcp-backend-%e9%85%8d%e7%bd%ae)
+      - [添加配置到 Supervisor](#%e6%b7%bb%e5%8a%a0%e9%85%8d%e7%bd%ae%e5%88%b0-supervisor-2)
+    - [启动服务](#%e5%90%af%e5%8a%a8%e6%9c%8d%e5%8a%a1)
+      - [可选](#%e5%8f%af%e9%80%89)
+      - [更新 Supervisor 配置](#%e6%9b%b4%e6%96%b0-supervisor-%e9%85%8d%e7%bd%ae)
+    - [添加 VPN-AGENT 地址](#%e6%b7%bb%e5%8a%a0-vpn-agent-%e5%9c%b0%e5%9d%80)
+    - [添加 Ticket](#%e6%b7%bb%e5%8a%a0-ticket)
   - [DNS](#dns)
     - [添加/覆盖 DNS 解析记录](#%e6%b7%bb%e5%8a%a0%e8%a6%86%e7%9b%96-dns-%e8%a7%a3%e6%9e%90%e8%ae%b0%e5%bd%95)
     - [删除 DNS 解析记录](#%e5%88%a0%e9%99%a4-dns-%e8%a7%a3%e6%9e%90%e8%ae%b0%e5%bd%95)
@@ -38,6 +56,259 @@ go build
 
 ```shell
 ./build.ps1
+```
+
+## 部署
+
+`etcd`、 `MongoDB` 可以只在一台机器上部署，不需要部署为集群。
+
+约定
+
+1. 项目和依赖部署在 `/data-dhcp` 目录下
+2. etcd 数据持久化在 `/data-dhcp/etcd-data`
+3. etcd 监听端口为 `12379`
+4. 机器 DNS 地址 为 `114.114.114.114:53`
+5. MongoDB 使用 `mongodb://127.0.0.1:27017/dhcp`
+6. 使用 `Supervisor` 管理服务，并且配置文件为 `/etc/supervisor/conf.d/dhcp.conf`
+7. 每个 VPN-AGENT 监听 `52100` 端口
+8. 每个 VPN-AGENT 机器上的 `30998` 端口，都能转发到对应的 Device Manager，且注册设备的 Path 为 `/api/v1/worker/register`。对应配置为 `RegisterPath = ":30998/api/v1/worker/register"`
+9. 设备已安装 `curl`、`supervisor`
+
+### 部署 etcd
+
+`etcd >= 3.4.3`
+
+#### 下载 etcd
+
+```shell
+ETCD_VER=v3.4.3
+
+# choose either URL
+GOOGLE_URL=https://storage.googleapis.com/etcd
+GITHUB_URL=https://github.com/etcd-io/etcd/releases/download
+DOWNLOAD_URL=${GITHUB_URL}
+
+rm -f /data-dhcp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+mkdir -p /data-dhcp/etcd-data
+
+curl -L ${DOWNLOAD_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /data-dhcp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+tar xzvf /data-dhcp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /data-dhcp/ --strip-components=1
+rm -f /data-dhcp/etcd-${ETCD_VER}-linux-amd64.tar.gz
+
+/data-dhcp/etcd --version
+/data-dhcp/etcdctl version
+```
+
+#### 添加配置到 `Supervisor`
+
+```shell
+echo '[program:auth-etcd]
+directory=/data-dhcp
+command=/data-dhcp/etcd
+environment= ETCD_NAME="s1",ETCD_DATA_DIR="/data-dhcp/etcd-data",ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:12379",ETCD_LISTEN_PEER_URLS="http://0.0.0.0:12380",ETCD_INITIAL_ADVERTISE_PEER_URLS="http://0.0.0.0:12380",ETCD_ADVERTISE_CLIENT_URLS="http://0.0.0.0:12380",ETCD_INITIAL_CLUSTER="s1=http://0.0.0.0:12380",ETCD_INITIAL_CLUSTER_STATE="new",ETCD_INITIAL_CLUSTER_TOKEN="tkn",ETCD_LOGGER="zap",ETCD_LOG_OUTPUTS="stderr",ETCD_LOG_LEVEL="info"
+autostart = true
+startsecs = 5
+autorestart = true
+startretries = 3
+stdout_logfile_maxbytes = 100MB
+stdout_logfile_backups = 3
+stderr_logfile_maxbytes = 100MB
+stderr_logfile_backups = 3
+stdout_logfile=/data/logs/supervisor/%(program_name)s_stdout.log
+stderr_logfile=/data/logs/supervisor/%(program_name)s_stderr.log' > /data-dhcp/dhcp.conf
+```
+
+### 部署 CoreDNS
+
+#### 下载 CoreDNS
+
+```shell
+COREDNS_VER=1.6.6
+
+mkdir -p /data-dhcp
+
+rm -f /data-dhcp/coredns_${COREDNS_VER}_linux_amd64.tgz
+
+curl -L https://github.com/coredns/coredns/releases/download/v${COREDNS_VER}/coredns_${COREDNS_VER}_linux_amd64.tgz -o /data-dhcp/coredns_${COREDNS_VER}_linux_amd64.tgz
+tar xzvf /data-dhcp/coredns_${COREDNS_VER}_linux_amd64.tgz -C /data-dhcp/
+rm -f /data-dhcp/coredns_${COREDNS_VER}_linux_amd64.tgz
+
+/data-dhcp/coredns --version
+```
+
+#### 生成 CoreDNS 配置
+
+```shell
+ETCD_ENDPOINTS='127.0.0.1:12379'
+DNS="`cat /etc/resolv.conf |grep nameserver|head -1|awk '{print $2}'`:53"
+
+echo "iotedge {
+    etcd . {
+        path /skydns
+        endpoint http://$ETCD_ENDPOINTS
+    }
+}
+worker {
+    etcd . {
+        path /skydns
+        endpoint http://$ETCD_ENDPOINTS
+	}
+}
+master {
+    etcd . {
+        path /skydns
+        endpoint http://$ETCD_ENDPOINTS
+    }
+}
+. { 
+    forward . $DNS
+}" > /data-dhcp/Corefile
+```
+
+#### 添加配置到 `Supervisor`
+
+```shell
+echo '[program:auth-coredns]
+directory=/data-dhcp
+command=/data-dhcp/coredns -conf /data-dhcp/Corefile
+autostart = true
+startsecs = 5
+autorestart = true
+startretries = 3
+stdout_logfile_maxbytes = 100MB
+stdout_logfile_backups = 3
+stderr_logfile_maxbytes = 100MB
+stderr_logfile_backups = 3
+stdout_logfile=/data/logs/supervisor/%(program_name)s_stdout.log
+stderr_logfile=/data/logs/supervisor/%(program_name)s_stderr.log' >> /data-dhcp/dhcp.conf
+```
+
+### 部署 MongoDB
+
+略
+
+### 部署 DHCP Backend
+
+将二进制拷贝到 `/data-dhcp/dhcp-bakcend`
+
+#### 生成公私钥对
+
+如果已生成密钥，则将公私钥分别拷贝为 `/data-dhcp/public.pem`、`/data-dhcp/private.pem`
+
+```shell
+openssl genrsa -out /data-dhcp/private.pem 1024
+openssl rsa -in /data-dhcp/private.pem -pubout -out /data-dhcp/public.pem
+```
+
+#### 生成 DHCP Backend 配置
+
+```shell
+MONGO='mongodb://127.0.0.1:27017/dhcp'
+
+echo 'PrivateKey = """' > /data-dhcp/dhcp-backend.cfg
+cat /data-dhcp/private.pem >> /data-dhcp/dhcp-backend.cfg
+echo '"""' >> /data-dhcp/dhcp-backend.cfg
+
+echo 'PublicKey = """' >> /data-dhcp/dhcp-backend.cfg
+cat /data-dhcp/public.pem >> /data-dhcp/dhcp-backend.cfg
+echo '"""' >> /data-dhcp/dhcp-backend.cfg
+
+echo "MongoURI = \"${MONGO}\"
+Endpoints = [
+    \"${ETCD_ENDPOINTS}\",
+]
+DNSPrefix = \"/skydns\"
+WorkerPrefix = \"/wk\"
+GatewayPrefix = \"/gw\"
+RegisterPath = \":30998/api/v1/worker/register\"
+VPNAgentPort = 52100" >> /data-dhcp/dhcp-backend.cfg
+```
+
+#### 添加配置到 `Supervisor`
+
+```shell
+echo '[program:auth-backend]
+directory=/data-dhcp
+command=/data-dhcp/dhcp-backend
+autostart = true
+startsecs = 5
+autorestart = true
+startretries = 3
+stdout_logfile_maxbytes = 100MB
+stdout_logfile_backups = 3
+stderr_logfile_maxbytes = 100MB
+stderr_logfile_backups = 3
+stdout_logfile=/data/logs/supervisor/%(program_name)s_stdout.log
+stderr_logfile=/data/logs/supervisor/%(program_name)s_stderr.log' >> /data-dhcp/dhcp.conf
+```
+
+### 启动服务
+
+#### 可选
+
+把三个程序添加为一个 group
+
+机器上部署有 etcd 时
+
+```shell
+echo '[group:auth]
+programs=auth-etcd,auth-coredns,auth-backend
+priority=999' >> /data-dhcp/dhcp.conf
+```
+
+机器上没有部署 etcd 时
+
+```shell
+echo '[group:auth]
+programs=auth-coredns,auth-backend
+priority=999' >> /data-dhcp/dhcp.conf
+```
+
+#### 更新 `Supervisor` 配置
+
+```shell
+mkdir -p /data/logs/supervisor/
+ln -s /data-dhcp/dhcp.conf /etc/supervisor/conf.d/dhcp.conf
+supervisorctl update
+```
+
+### 添加 VPN-AGENT 地址
+
+- Key: `/gw/{vpn}/{ip}`
+  - `vpn`:
+    - `openvpn`: OpenVPN
+    - `wg`: WireGuard
+
+```shell
+export ETCDCTL_ENDPOINTS="http://127.0.0.1:12379"
+
+/data-dhcp/etcdctl put "/gw/openvpn/10.56.1.4" '{"host":"10.56.1.4","type":"openvpn","count":0}'
+/data-dhcp/etcdctl put "/gw/openvpn/10.56.1.5" '{"host":"10.56.1.5","type":"openvpn","count":0}'
+/data-dhcp/etcdctl put "/gw/wg/10.56.1.6" '{"host":"10.56.1.6","type":"wg","count":0}'
+```
+
+### 添加 Ticket
+
+示例1：添加一个能使用 `9999` 次的 Key
+
+```javascript
+use dhcp;
+db.boorstrapTickt.insertOne({ 
+    "_id" : "jiangxing123", 
+    "remainCount" : NumberInt(9999)
+});
+```
+
+示例2：添加一个只能 WorkerID: `J01f594430`的设备使用，且 `2019-12-23T09:55:10.841+0000` 过期的 Key
+
+```javascript
+use dhcp;
+db.boorstrapTickt.insertOne({ 
+    "_id" : "j2pjvn", 
+    "remainCount" : NumberInt(999), 
+    "wid" : "J01f594430", 
+    "deadLine" : ISODate("2019-12-23T09:55:10.841+0000")
+});
 ```
 
 ## DNS
