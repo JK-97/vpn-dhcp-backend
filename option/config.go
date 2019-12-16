@@ -59,6 +59,12 @@ func ReadConfigFile(filename string) *ApplicationConfig {
 	if config.PublicKey != "" {
 		block, _ := pem.Decode([]byte(config.PublicKey))
 		result.PublicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
+		if err != nil {
+			pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+			if err == nil {
+				result.PublicKey = pub.(*rsa.PublicKey)
+			}
+		}
 	}
 
 	result.MongoURI = config.MongoURI
