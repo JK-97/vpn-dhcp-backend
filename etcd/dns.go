@@ -113,10 +113,10 @@ func (a *DNSAgent) ModifySubTXTRecord(root dns.Record) error {
 	var srv SkyDNSRecord
 	if err := json.Unmarshal(it.Value, &srv); err == nil {
 		srv.Name = a.KeyToDomain(string(it.Key))
-		if srv.Host == root.Host {
-			// IP 地址未变动
-			return nil
-		}
+		// if srv.Host == root.Host {
+		// 	// IP 地址未变动
+		// 	return nil
+		// }
 		a.AddRecord(root)
 	}
 	result := make([]SkyDNSRecord, 0)
@@ -125,7 +125,12 @@ func (a *DNSAgent) ModifySubTXTRecord(root dns.Record) error {
 		for _, it := range resp.Kvs {
 			var srv SkyDNSRecord
 			if err := json.Unmarshal(it.Value, &srv); err == nil {
-				if srv.Text != "" {
+				if srv.Text == "" {
+					// 只修改 Text 记录
+					continue
+				}
+				if strings.Contains(srv.Text, ".iotedge:") {
+					// 不修改域名+端口号的服务
 					continue
 				}
 				srv.Key = string(it.Key)
